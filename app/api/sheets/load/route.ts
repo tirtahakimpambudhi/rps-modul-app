@@ -23,7 +23,9 @@ export async function GET(req: NextRequest) {
 
   try {
     const rowId = req.nextUrl.searchParams.get("rowId");
-    const secret = process.env.GOOGLE_SHEETS_SECRET || "";
+    const clean = (v?: string) => (v ?? "").trim().replace(/^["'\s]+|["'\s]+$/g, "");
+
+    const secret = clean(process.env.GOOGLE_SHEETS_SECRET || "");
 
     const params = new URLSearchParams({ action: "load", secret });
     if (rowId) params.set("rowId", rowId);

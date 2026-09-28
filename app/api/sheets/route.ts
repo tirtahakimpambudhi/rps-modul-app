@@ -12,7 +12,10 @@ export const dynamic = "force-dynamic";
  * - GOOGLE_SHEETS_SECRET     : (opsional) token sederhana untuk verifikasi
  */
 export async function POST(req: NextRequest) {
-  const webAppUrl = process.env.GOOGLE_SHEETS_WEBAPP_URL;
+  const clean = (v?: string) =>
+  (v ?? "").trim().replace(/^["'\s]+|["'\s]+$/g, "");
+
+  const webAppUrl = clean(process.env.GOOGLE_SHEETS_WEBAPP_URL);
 
   if (!webAppUrl) {
     return NextResponse.json(
