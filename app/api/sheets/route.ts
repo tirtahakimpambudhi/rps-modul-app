@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getWebAppUrl, getSecret, callAppsScript } from "../../../lib/apps-scripts";
 
 export const dynamic = "force-dynamic";
 
@@ -12,17 +13,14 @@ export const dynamic = "force-dynamic";
  * - GOOGLE_SHEETS_SECRET     : (opsional) token sederhana untuk verifikasi
  */
 export async function POST(req: NextRequest) {
-  const clean = (v?: string) =>
-  (v ?? "").trim().replace(/^["'\s]+|["'\s]+$/g, "");
-
-  const webAppUrl = clean(process.env.GOOGLE_SHEETS_WEBAPP_URL);
+  const webAppUrl = getWebAppUrl();
 
   if (!webAppUrl) {
     return NextResponse.json(
       {
         success: false,
         message:
-          "GOOGLE_SHEETS_WEBAPP_URL belum dikonfigurasi di environment variables. Lihat README.md bagian 'Integrasi Google Sheets'.",
+          "GOOGLE_SHEETS_WEBAPP_URL belum dikonfigurasi atau formatnya tidak valid di environment variables. Lihat README.md bagian 'Integrasi Google Sheets'.",
       },
       { status: 500 }
     );
@@ -33,18 +31,16 @@ export async function POST(req: NextRequest) {
 
     const payload = {
       action: "save",
-      secret: process.env.GOOGLE_SHEETS_SECRET || "",
+      secret: getSecret(),
       rowId: body?.rowId || null,
       data: body?.data,
       timestamp: new Date().toISOString(),
     };
 
-    const upstream = await fetch(webAppUrl, {
+    const upstream = await callAppsScript(webAppUrl, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
       body: JSON.stringify(payload),
-      // Apps Script Web App terkadang butuh redirect diikuti otomatis
-      redirect: "follow",
     });
 
     const text = await upstream.text();
@@ -52,14 +48,15 @@ export async function POST(req: NextRequest) {
     try {
       json = JSON.parse(text);
     } catch {
-      json = { success: upstream.ok, message: text };
+      json = { success: upstream.ok, message: text.slice(0, 300) };
     }
 
     if (!upstream.ok || json?.success === false) {
       return NextResponse.json(
         {
           success: false,
-          message: json?.message || "Google Apps Script menolak permintaan penyimpanan.",
+          message:
+            json?.message || "Google Apps Script menolak permintaan penyimpanan.",
         },
         { status: 502 }
       );
@@ -70,7 +67,7 @@ export async function POST(req: NextRequest) {
       message: json?.message || "Data berhasil disimpan ke Google Sheets.",
       rowId: json?.rowId,
     });
-  }  catch (err) {
+  } catch (err) {
     const cause = (err as any)?.cause;
     console.error("Sheets fetch error:", err, cause);
     return NextResponse.json(
