@@ -70,13 +70,16 @@ export async function POST(req: NextRequest) {
       message: json?.message || "Data berhasil disimpan ke Google Sheets.",
       rowId: json?.rowId,
     });
-  } catch (err) {
+  }  catch (err) {
+    const cause = (err as any)?.cause;
+    console.error("Sheets fetch error:", err, cause);
     return NextResponse.json(
       {
         success: false,
         message:
           err instanceof Error
-            ? `Gagal menghubungi Google Apps Script: ${err.message}`
+            ? `Gagal menghubungi Google Apps Script: ${err.message}` +
+              (cause ? ` (${cause.code || ""} ${cause.message || cause})` : "")
             : "Gagal menghubungi Google Apps Script.",
       },
       { status: 500 }
